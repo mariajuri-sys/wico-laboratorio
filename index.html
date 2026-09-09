@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WICO Combustibles Laboratorio</title>
+<title>WICO Combustibles — Laboratorio</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
 function toggleSidebar() {
   const sb = document.getElementById('main-sidebar');
@@ -219,7 +219,7 @@ body{font-family:Arial,sans-serif;font-size:14px;background:var(--gray);color:#2
       <div class="nav-item" onclick="showPage('reactivos',this);closeSidebar()">🧪 Reactivos</div>
       <div class="nav-item" onclick="showPage('consumibles',this);closeSidebar()">📦 Consumibles</div>
       <div class="nav-item" onclick="showPage('checklist',this);closeSidebar()">✅ Checklist</div>
-      <div class="nav-item" onclick="showPage('historial',this);closeSidebar()">📋 Historial</div>
+      <div class="nav-item" id="nav-historial" onclick="showPage('historial',this);closeSidebar()">📋 Historial</div>
       <div class="nav-sec" id="nav-admin-sec">Admin</div>
       <div class="nav-item" id="nav-usuarios" onclick="showPage('usuarios',this);closeSidebar()">👥 Usuarios</div>
       <div class="sidebar-footer">
@@ -294,6 +294,7 @@ async function initApp(user) {
   if (currentRol !== 'admin') {
     document.getElementById('nav-admin-sec').style.display = 'none';
     document.getElementById('nav-usuarios').style.display = 'none';
+    document.getElementById('nav-historial').style.display = 'none';
   }
   showPage('alertas', document.querySelector('.nav-item'));
 }
@@ -703,18 +704,11 @@ async function renderUsuarios() {
   const { data } = await sb.from('usuarios').select('*').order('nombre');
   const rows = (data||[]).map(u => `<tr><td>${u.nombre||'—'}</td><td>${u.email}</td><td>${estadoBadge(u.rol)}</td><td>${u.activo?'<span class="badge bg">Activo</span>':'<span class="badge br">Inactivo</span>'}</td></tr>`).join('');
   pg.innerHTML = `
-    <div class="page-hdr"><div class="page-title">Gestión de usuarios</div><div class="page-sub">Los usuarios se crean desde Supabase → Authentication → Invite user</div></div>
+    <div class="page-hdr"><div class="page-title">Gestión de usuarios</div><div class="page-sub">Usuarios con acceso al sistema</div></div>
     <div class="table-wrap">
       <div class="table-hdr"><div class="table-title">Usuarios del sistema</div></div>
       <table class="tbl"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th></tr></thead>
       <tbody>${rows||'<tr><td colspan="4" class="empty">Sin usuarios.</td></tr>'}</tbody></table>
-    </div>
-    <div style="background:#fff;border-radius:10px;border:1px solid #dde3ec;padding:16px;font-size:12px;color:#555;line-height:1.7">
-      <strong style="color:var(--wico-dark)">Para agregar un usuario nuevo:</strong><br>
-      1. Andá a supabase.com → tu proyecto → Authentication → Users → Invite user<br>
-      2. Ingresá el email y enviá la invitación<br>
-      3. El usuario recibirá un mail para crear su contraseña<br>
-      4. Desde el SQL Editor, actualizá su rol: <code style="background:#f4f6f9;padding:2px 6px;border-radius:3px">UPDATE usuarios SET rol='laboratorista', nombre='Nombre Apellido' WHERE email='email@wico.com.ar';</code>
     </div>`;
 }
 
