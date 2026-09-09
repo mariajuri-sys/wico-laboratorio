@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WICO Combustibles — Laboratorio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+function toggleSidebar() {
+  const sb = document.getElementById('main-sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('open');
+}
+function closeSidebar() {
+  const sb = document.getElementById('main-sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  sb.classList.remove('open');
+  ov.classList.remove('open');
+}
+function checkMobile() {
+  const hamburger = document.querySelector('.hamburger');
+  if (hamburger) hamburger.style.display = window.innerWidth <= 700 ? 'block' : 'none';
+}
+window.addEventListener('resize', checkMobile);
+window.addEventListener('load', checkMobile);
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--wico-dark:#1F3864;--wico-blue:#2E75B6;--wico-light:#D6E4F0;--red:#C00000;--orange:#E67E22;--green:#27AE60;--gray:#f4f6f9}
+body{font-family:Arial,sans-serif;font-size:14px;background:var(--gray);color:#222;min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--wico-dark);color:#fff;padding:0 20px;height:52px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+.logo{width:36px;height:36px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-txt{background:var(--wico-dark);color:#fff;font-weight:700;font-size:9px;text-align:center;padding:3px 5px;border-radius:2px;line-height:1.3}
+.logo-txt span{color:#c0392b;font-size:7px;display:block}
+.topbar-title{font-size:13px;font-weight:700;flex:1}
+.topbar-user{display:flex;align-items:center;gap:8px;font-size:12px;color:#ccd6e8}
+.role-pill{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:2px 8px;font-size:11px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--wico-blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.hamburger{display:none;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;margin-left:-8px}
+@media(max-width:700px){
+  .hamburger{display:block}
+  .topbar-title{font-size:12px}
+  .role-pill{display:none}
+}
+
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;flex-direction:column}
+.login-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px}
+.login-card{background:#fff;border-radius:12px;border:1px solid #dde3ec;padding:36px;width:100%;max-width:360px}
+.login-logo-wrap{text-align:center;margin-bottom:22px}
+.login-logo-circle{width:56px;height:56px;border-radius:50%;background:var(--wico-dark);margin:0 auto 10px;display:flex;align-items:center;justify-content:center}
+.login-logo-inner{color:#fff;font-weight:700;font-size:11px;text-align:center;line-height:1.3}
+.login-logo-inner span{color:#e74c3c;font-size:8px;display:block}
+.login-title{font-size:17px;font-weight:700;color:var(--wico-dark);margin-bottom:4px}
+.login-sub{font-size:12px;color:#888}
+.field{margin-bottom:14px}
+.field label{font-size:12px;color:#555;font-weight:700;display:block;margin-bottom:4px}
+.field input{width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;background:#fafafa}
+.field input:focus{outline:none;border-color:var(--wico-blue);box-shadow:0 0 0 2px rgba(46,117,182,0.15)}
+.btn-primary{width:100%;padding:10px;background:var(--wico-dark);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+.btn-primary:hover{background:var(--wico-blue)}
+.btn-primary:disabled{opacity:0.6;cursor:not-allowed}
+.login-err{color:var(--red);font-size:12px;margin-top:8px;text-align:center;min-height:16px}
+.login-footer{text-align:center;font-size:11px;color:#aaa;margin-top:18px}
+
+/* LAYOUT */
+#main-app{display:none;flex-direction:column;min-height:100vh}
+.layout{display:flex;flex:1}
+
+/* SIDEBAR */
+.sidebar{width:196px;background:var(--wico-dark);flex-shrink:0;display:flex;flex-direction:column;padding:10px 0;transition:transform 0.25s ease}
+.nav-sec{padding:8px 14px 2px;font-size:10px;color:#6b8ab5;font-weight:700;letter-spacing:0.8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:#ccd6e8;cursor:pointer;font-size:13px;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,0.07);color:#fff}
+.nav-item.active{background:rgba(46,117,182,0.25);color:#fff;border-left-color:var(--wico-blue)}
+.nav-icon{font-size:17px}
+.sidebar-footer{margin-top:auto;padding:10px 0;border-top:1px solid rgba(255,255,255,0.08)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:98}
+.sidebar-overlay.open{display:block}
+.hamburger{display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px 8px;line-height:1}
+
+/* MOBILE */
+@media(max-width:700px){
+  .hamburger{display:block!important}
+  .sidebar{position:fixed;top:52px;left:0;bottom:0;z-index:99;transform:translateX(-100%);width:220px}
+  .sidebar.open{transform:translateX(0)}
+  .content{padding:12px}
+  .alert-grid{grid-template-columns:repeat(2,1fr)!important}
+  .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-hdr{flex-wrap:wrap;gap:8px}
+  .btn-add{font-size:11px;padding:5px 10px}
+  .page-title{font-size:15px}
+  .modal-bg{padding:10px}
+  .modal{border-radius:8px;max-height:95vh}
+  .cl-item{flex-wrap:wrap;gap:8px}
+  .topbar-user .role-pill{display:none}
+  .topbar-title{font-size:11px}
+}
+.btn-logout{display:flex;align-items:center;gap:10px;padding:9px 16px;color:#8aa3c0;cursor:pointer;font-size:12px;background:none;border:none;width:100%}
+.btn-logout:hover{color:#fff}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:20px;max-width:100%}
+.page-hdr{margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--wico-light)}
+.page-title{font-size:17px;font-weight:700;color:var(--wico-dark)}
+.page-sub{font-size:12px;color:#888;margin-top:2px}
+.hidden{display:none!important}
+
+/* CARDS ALERTA */
+.alert-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.alert-card{background:#fff;border-radius:10px;border:1px solid #dde3ec;padding:14px;text-align:center}
+.alert-card.c-red{border-color:#f5c6c6;background:#fff5f5}
+.alert-card.c-orange{border-color:#fde8c8;background:#fffaf3}
+.alert-card.c-green{border-color:#c3e6cb;background:#f3fdf5}
+.alert-num{font-size:28px;font-weight:700;line-height:1}
+.alert-num.red{color:var(--red)} .alert-num.orange{color:var(--orange)} .alert-num.green{color:var(--green)} .alert-num.blue{color:var(--wico-blue)}
+.alert-lbl{font-size:11px;color:#888;margin-top:4px}
+
+/* TABLE */
+.table-wrap{background:#fff;border-radius:10px;border:1px solid #dde3ec;overflow:hidden;margin-bottom:16px}
+.table-hdr{padding:12px 16px;border-bottom:1px solid #edf0f5;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.table-title{font-size:13px;font-weight:700;color:var(--wico-dark)}
+.btn-add{background:var(--wico-blue);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn-add:hover{background:var(--wico-dark)}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--wico-light);color:var(--wico-dark);font-weight:700;padding:8px 12px;text-align:left;font-size:11px;white-space:nowrap}
+.tbl td{padding:9px 12px;border-bottom:1px solid #f0f2f6;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f8fafc}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot-g{background:var(--green)} .dot-o{background:var(--orange)} .dot-r{background:var(--red)} .dot-gray{background:#aaa}
+.badge{display:inline-block;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700}
+.bg{background:#d4edda;color:#155724} .bo{background:#fff3cd;color:#856404} .br{background:#f8d7da;color:#721c24} .bb{background:#d1ecf1;color:#0c5460} .bgr{background:#e9ecef;color:#495057}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal-hdr{padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+.modal-hdr h3{font-size:15px;font-weight:700;color:var(--wico-dark)}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1}
+.modal-body{padding:20px}
+.modal-field{margin-bottom:14px}
+.modal-field label{font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:4px}
+.modal-field input,.modal-field select,.modal-field textarea{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;font-family:Arial,sans-serif}
+.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{outline:none;border-color:var(--wico-blue)}
+.modal-footer{padding:14px 20px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end}
+.btn-cancel{padding:8px 16px;background:#f4f6f9;border:1px solid #dde3ec;border-radius:6px;font-size:13px;cursor:pointer}
+.btn-save{padding:8px 16px;background:var(--wico-dark);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-save:hover{background:var(--wico-blue)}
+.btn-edit{background:none;border:1px solid #dde3ec;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--wico-blue)}
+.btn-edit:hover{background:var(--wico-light)}
+.btn-del{background:none;border:1px solid #f5c6c6;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--red)}
+
+/* CHECKLIST */
+.cl-section{background:#f4f6f9;padding:6px 14px;font-size:10px;font-weight:700;color:var(--wico-blue);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #edf0f5}
+.cl-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f0f2f6;flex-wrap:wrap}
+.cl-item:last-child{border-bottom:none}
+.cl-check{width:22px;height:22px;border-radius:4px;border:2px solid #ccc;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;transition:all .15s;font-weight:700}
+.cl-check.ok{background:var(--green);border-color:var(--green)}
+.cl-check.issue{background:var(--red);border-color:var(--red)}
+.cl-txt{flex:1;font-size:12px}
+.cl-area{font-size:10px;color:#aaa;text-transform:uppercase;font-weight:700}
+.cl-sel{border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:11px}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:#888;font-size:13px}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid #ddd;border-top-color:var(--wico-blue);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:30px;color:#aaa;font-size:13px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--wico-dark);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:300;display:none}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="topbar">
+    <div class="logo"><div class="logo-txt">WICO<span>COMB.</span></div></div>
+    <div class="topbar-title">Laboratorio — Panel de Control</div>
+  </div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo-wrap">
+        <div class="login-logo-circle"><div class="login-logo-inner">WICO<span>COMBUSTIBLES</span></div></div>
+        <div class="login-title">Laboratorio WICO</div>
+        <div class="login-sub">Ingresá con tu usuario y contraseña</div>
+      </div>
+      <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="usuario@wico.com.ar" /></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" /></div>
+      <button class="btn-primary" id="btn-login" onclick="doLogin()">Ingresar</button>
+      <div class="login-err" id="login-err"></div>
+      <div class="login-footer">WICO Combustibles · Sistema de Laboratorio</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app">
+  <div class="topbar">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú" style="display:none;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;margin-left:-8px">☰</button>
+    <div class="logo"><div class="logo-txt">WICO<span>COMB.</span></div></div>
+    <div class="topbar-title">Laboratorio — Panel de Control</div>
+    <div class="topbar-user">
+      <span id="tb-name" style="font-size:12px"></span>
+      <span class="role-pill" id="tb-role"></span>
+      <div class="avatar" id="tb-av">U</div>
+    </div>
+  </div>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="layout">
+    <div class="sidebar" id="main-sidebar">
+      <div style="height:6px"></div>
+      <div class="nav-sec">Principal</div>
+      <div class="nav-item active" onclick="showPage('alertas',this);closeSidebar()">⚠ Alertas</div>
+      <div class="nav-item" onclick="showPage('equipos',this);closeSidebar()">🔬 Equipos</div>
+      <div class="nav-item" onclick="showPage('reactivos',this);closeSidebar()">🧪 Reactivos</div>
+      <div class="nav-item" onclick="showPage('consumibles',this);closeSidebar()">📦 Consumibles</div>
+      <div class="nav-item" onclick="showPage('checklist',this);closeSidebar()">✅ Checklist</div>
+      <div class="nav-item" id="nav-historial" onclick="showPage('historial',this);closeSidebar()">📋 Historial</div>
+      <div class="nav-sec" id="nav-admin-sec">Admin</div>
+      <div class="nav-item" id="nav-usuarios" onclick="showPage('usuarios',this);closeSidebar()">👥 Usuarios</div>
+      <div class="sidebar-footer">
+        <button class="btn-logout" onclick="doLogout()">🚪 Cerrar sesión</button>
+      </div>
+    </div>
+    <div class="content">
+      <div id="page-alertas"></div>
+      <div id="page-equipos" class="hidden"></div>
+      <div id="page-reactivos" class="hidden"></div>
+      <div id="page-consumibles" class="hidden"></div>
+      <div id="page-checklist" class="hidden"></div>
+      <div id="page-historial" class="hidden"></div>
+      <div id="page-usuarios" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg hidden" id="modal-bg">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3 id="modal-title">Editar</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" id="modal-save" onclick="saveModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://nkmqsoxlptgscfpibqtz.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5rbXFzb3hscHRnc2NmcGlicXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNTg3OTgsImV4cCI6MjEwMzkzNDc5OH0.k3RHYdJ1jRllP6Oegoib2q89Nbp9tVFzz46J_Nk406Q';
+const { createClient } = supabase;
+const sb = createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentRol = null;
+let modalMode = null;
+let modalTable = null;
+let modalId = null;
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const btn   = document.getElementById('btn-login');
+  const err   = document.getElementById('login-err');
+  if (!email || !pass) { err.textContent = 'Completá email y contraseña.'; return; }
+  btn.disabled = true; btn.textContent = 'Ingresando...'; err.textContent = '';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { err.textContent = 'Usuario o contraseña incorrectos.'; btn.disabled=false; btn.textContent='Ingresar'; return; }
+  await initApp(data.user);
+}
+
+async function initApp(user) {
+  const { data: perfil } = await sb.from('usuarios').select('*').eq('id', user.id).single();
+  currentUser = perfil || { id: user.id, email: user.email, nombre: user.email, rol: 'laboratorista' };
+  currentRol = currentUser.rol;
+  document.getElementById('login-screen').style.display = 'none';
+  const ma = document.getElementById('main-app');
+  ma.style.display = 'flex'; ma.style.flexDirection = 'column';
+  const nombre = currentUser.nombre || currentUser.email;
+  document.getElementById('tb-name').textContent = nombre;
+  document.getElementById('tb-role').textContent = { admin:'Administrador', laboratorista:'Laboratorista', visualizador:'Visualizador' }[currentRol] || currentRol;
+  document.getElementById('tb-av').textContent = nombre.slice(0,2).toUpperCase();
+  if (currentRol !== 'admin') {
+    document.getElementById('nav-admin-sec').style.display = 'none';
+    document.getElementById('nav-usuarios').style.display = 'none';
+    document.getElementById('nav-historial').style.display = 'none';
+  }
+  showPage('alertas', document.querySelector('.nav-item'));
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('btn-login').disabled = false;
+  document.getElementById('btn-login').textContent = 'Ingresar';
+  currentUser = null; currentRol = null;
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session && document.getElementById('main-app').style.display === 'none' && event === 'SIGNED_IN') {
+    await initApp(session.user);
+  }
+});
+
+// ── NAVEGACIÓN ────────────────────────────────────────────────────────────
+function showPage(name, el) {
+  ['alertas','equipos','reactivos','consumibles','checklist','historial','usuarios'].forEach(p => {
+    document.getElementById('page-'+p).classList.toggle('hidden', p !== name);
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  loadPage(name);
+}
+
+function loadPage(name) {
+  if (name === 'alertas')     renderAlertas();
+  if (name === 'equipos')     renderEquipos();
+  if (name === 'reactivos')   renderReactivos();
+  if (name === 'consumibles') renderConsumibles();
+  if (name === 'checklist')   renderChecklist();
+  if (name === 'historial')   renderHistorial();
+  if (name === 'usuarios')    renderUsuarios();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function canEdit() { return currentRol === 'admin' || currentRol === 'laboratorista'; }
+
+function diasRestantes(fecha) {
+  if (!fecha) return null;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const f = new Date(fecha); f.setHours(0,0,0,0);
+  return Math.round((f - hoy) / 86400000);
+}
+
+function dotClass(dias, estado) {
+  if (estado === 'Fuera de servicio' || estado === 'Sin stock' || estado === 'Vencido' || estado === 'Pendiente de adquisición') return 'dot-r';
+  if (dias === null) return 'dot-gray';
+  if (dias <= 0) return 'dot-r';
+  if (dias <= 30) return 'dot-o';
+  return 'dot-g';
+}
+
+function diasHTML(dias) {
+  if (dias === null) return '—';
+  const col = dias <= 0 ? 'var(--red)' : dias <= 30 ? 'var(--orange)' : 'var(--green)';
+  return `<span style="color:${col};font-weight:700">${dias <= 0 ? 'Vencido' : dias + ' días'}</span>`;
+}
+
+function estadoBadge(estado) {
+  const m = { 'Operativo':'bg','OK':'bg','En reparación':'bo','Stock bajo':'bo','Fuera de servicio':'br','Vencido':'br','Sin stock':'br','Requiere reposición':'bo','Pendiente de adquisición':'bgr','No aplica':'bgr' };
+  return `<span class="badge ${m[estado]||'bgr'}">${estado||'—'}</span>`;
+}
+
+function toast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function loading(id) { document.getElementById(id).innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>'; }
+
+// ── ALERTAS ───────────────────────────────────────────────────────────────
+async function renderAlertas() {
+  const pg = document.getElementById('page-alertas');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Resumen de alertas</div><div class="page-sub">Estado actual del laboratorio</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+  const [eq, re, co] = await Promise.all([
+    sb.from('equipos').select('*'),
+    sb.from('reactivos').select('*'),
+    sb.from('consumibles').select('*'),
+  ]);
+  const equipos = eq.data || []; const reactivos = re.data || []; const consumibles = co.data || [];
+  const alertas = [];
+  equipos.forEach(e => {
+    const d = diasRestantes(e.proxima_calibracion);
+    if (e.estado === 'Fuera de servicio' || e.estado === 'Pendiente de adquisición') alertas.push({ area:'Equipos', item:e.nombre, detalle:e.estado, tipo:'red', dias:null });
+    else if (e.estado === 'En reparación') alertas.push({ area:'Equipos', item:e.nombre, detalle:'En reparación', tipo:'orange', dias:null });
+    else if (d !== null && d <= 30) alertas.push({ area:'Equipos', item:e.nombre, detalle:`Calibración: ${e.proxima_calibracion}`, tipo: d<=0?'red':'orange', dias:d });
+  });
+  reactivos.forEach(r => {
+    const d = diasRestantes(r.vencimiento);
+    if (r.estado === 'Vencido' || r.estado === 'Sin stock') alertas.push({ area:'Reactivos', item:r.nombre, detalle:r.estado, tipo:'red', dias:d });
+    else if (r.estado === 'Stock bajo') alertas.push({ area:'Reactivos', item:r.nombre, detalle:`Stock: ${r.stock_actual} ${r.unidad||''} · Mín: ${r.stock_minimo} ${r.unidad||''}`, tipo:'orange', dias:null });
+    else if (d !== null && d <= 30) alertas.push({ area:'Reactivos', item:r.nombre, detalle:`Vencimiento: ${r.vencimiento}`, tipo: d<=0?'red':'orange', dias:d });
+  });
+  consumibles.forEach(c => {
+    if (c.estado === 'Sin stock') alertas.push({ area:'Consumibles', item:c.nombre, detalle:'Sin stock', tipo:'red', dias:null });
+    else if (c.estado === 'Stock bajo' || c.estado === 'Requiere reposición') alertas.push({ area:'Consumibles', item:c.nombre, detalle:`Stock: ${c.stock_actual} ${c.unidad||''}`, tipo:'orange', dias:null });
+  });
+  const rojos = alertas.filter(a=>a.tipo==='red').length;
+  const naranjas = alertas.filter(a=>a.tipo==='orange').length;
+  const total = equipos.length + reactivos.length + consumibles.length;
+  const ok = total - rojos - naranjas;
+  let rows = alertas.length ? alertas.map(a => `<tr><td>${a.area}</td><td><strong>${a.item}</strong></td><td>${a.detalle}</td><td>${a.tipo==='red'?'<span class="badge br">Crítico</span>':'<span class="badge bo">Atención</span>'}</td><td>${a.dias!==null?diasHTML(a.dias):'—'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">✓ Sin alertas activas</td></tr>';
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">Resumen de alertas</div><div class="page-sub">Estado actual del laboratorio · actualizado ahora</div></div>
+    <div class="alert-grid">
+      <div class="alert-card c-red"><div class="alert-num red">${rojos}</div><div class="alert-lbl">Críticos</div></div>
+      <div class="alert-card c-orange"><div class="alert-num orange">${naranjas}</div><div class="alert-lbl">Requieren atención</div></div>
+      <div class="alert-card"><div class="alert-num blue">${total}</div><div class="alert-lbl">Ítems totales</div></div>
+      <div class="alert-card c-green"><div class="alert-num green">${ok}</div><div class="alert-lbl">Conformes</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Ítems que requieren atención</div></div>
+      <table class="tbl"><thead><tr><th>Área</th><th>Ítem</th><th>Detalle</th><th>Estado</th><th>Días</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ── EQUIPOS ───────────────────────────────────────────────────────────────
+async function renderEquipos() {
+  const pg = document.getElementById('page-equipos');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Equipos e instrumentos</div><div class="page-sub">Estado, calibración y revisión</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+  const { data } = await sb.from('equipos').select('*').order('nombre');
+  const rows = (data||[]).map(e => {
+    const d = diasRestantes(e.proxima_calibracion);
+    const dc = dotClass(d, e.estado);
+    const edit = canEdit() ? `<button class="btn-edit" onclick='openEdit("equipos",${JSON.stringify(e)})'>Editar</button>` : '';
+    return `<tr><td><span class="dot ${dc}"></span></td><td><strong>${e.nombre}</strong></td><td style="color:#666">${e.norma||'—'}</td><td>${estadoBadge(e.estado)}</td><td>${e.proxima_calibracion||'—'}</td><td>${diasHTML(d)}</td><td style="color:#888;font-size:11px">${e.ultima_revision||'—'}</td><td>${edit}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="empty">Sin equipos registrados. Agregá el primero.</td></tr>';
+  const addBtn = canEdit() ? `<button class="btn-add" onclick="openNew('equipos')">+ Agregar equipo</button>` : '';
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">Equipos e instrumentos</div><div class="page-sub">Estado, calibración y revisión</div></div>
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Inventario de equipos</div>${addBtn}</div>
+      <table class="tbl"><thead><tr><th></th><th>Equipo</th><th>Norma</th><th>Estado</th><th>Próx. calibración</th><th>Días</th><th>Última revisión</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ── REACTIVOS ─────────────────────────────────────────────────────────────
+async function renderReactivos() {
+  const pg = document.getElementById('page-reactivos');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Reactivos y soluciones</div><div class="page-sub">Stock y vencimientos</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+  const { data } = await sb.from('reactivos').select('*').order('nombre');
+  const rows = (data||[]).map(r => {
+    const d = diasRestantes(r.vencimiento);
+    const dc = dotClass(d, r.estado);
+    const edit = canEdit() ? `<button class="btn-edit" onclick='openEdit("reactivos",${JSON.stringify(r)})'>Editar</button>` : '';
+    return `<tr><td><span class="dot ${dc}"></span></td><td><strong>${r.nombre}</strong></td><td style="color:#666">${r.uso||'—'}</td><td>${r.vencimiento||'—'}</td><td>${r.stock_actual??'—'} ${r.unidad||''}</td><td>${r.stock_minimo??'—'} ${r.unidad||''}</td><td>${estadoBadge(r.estado)}</td><td>${edit}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="empty">Sin reactivos registrados.</td></tr>';
+  const addBtn = canEdit() ? `<button class="btn-add" onclick="openNew('reactivos')">+ Agregar reactivo</button>` : '';
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">Reactivos y soluciones</div><div class="page-sub">Stock y vencimientos</div></div>
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Inventario de reactivos</div>${addBtn}</div>
+      <table class="tbl"><thead><tr><th></th><th>Reactivo</th><th>Uso</th><th>Vencimiento</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ── CONSUMIBLES ───────────────────────────────────────────────────────────
+async function renderConsumibles() {
+  const pg = document.getElementById('page-consumibles');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">EPP y consumibles</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+  const { data } = await sb.from('consumibles').select('*').order('nombre');
+  const rows = (data||[]).map(c => {
+    const dc = c.estado==='Sin stock'||c.estado==='Requiere reposición'?'dot-r': c.estado==='Stock bajo'?'dot-o':'dot-g';
+    const edit = canEdit() ? `<button class="btn-edit" onclick='openEdit("consumibles",${JSON.stringify(c)})'>Editar</button>` : '';
+    return `<tr><td><span class="dot ${dc}"></span></td><td><strong>${c.nombre}</strong></td><td><span class="badge bgr">${c.categoria||'—'}</span></td><td>${c.stock_actual??'—'} ${c.unidad||''}</td><td>${c.stock_minimo??'—'} ${c.unidad||''}</td><td>${estadoBadge(c.estado)}</td><td>${edit}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">Sin consumibles registrados.</td></tr>';
+  const addBtn = canEdit() ? `<button class="btn-add" onclick="openNew('consumibles')">+ Agregar ítem</button>` : '';
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">EPP y consumibles</div><div class="page-sub">Material de laboratorio, EPP y vidrio</div></div>
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Inventario de consumibles</div>${addBtn}</div>
+      <table class="tbl"><thead><tr><th></th><th>Ítem</th><th>Categoría</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ── CHECKLIST ─────────────────────────────────────────────────────────────
+let clTemplates = [];
+
+async function renderChecklist() {
+  const pg = document.getElementById('page-checklist');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Checklist semanal</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+
+  const { data: templates } = await sb.from('checklist_templates').select('*').eq('activo', true).order('area').order('orden');
+  clTemplates = templates || [];
+
+  const hoy = new Date();
+  const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - ((hoy.getDay()+6)%7));
+  const semana = lunes.toISOString().split('T')[0];
+  const semanaDisplay = lunes.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+  const areas = [...new Set(clTemplates.map(i=>i.area))];
+  const isAdmin = currentRol === 'admin';
+
+  let itemsHtml = areas.map(area => {
+    const items = clTemplates.filter(i=>i.area===area);
+    const rows = items.map(item => {
+      const key = 'cl_'+item.id;
+      return `<div class="cl-item" id="row-${key}">
+        <div style="flex:2;min-width:160px">
+          <div class="cl-txt">${item.descripcion}</div>
+          <div class="cl-area">${area}</div>
+        </div>
+        <select class="cl-sel" id="sel-${key}" onchange="selCL('${key}',this.value)" style="flex:1;min-width:120px" ${!canEdit()?'disabled':''}>
+          <option value="">— Estado —</option>
+          <option value="OK">✓ OK</option>
+          <option value="No cumple">✗ No cumple</option>
+          <option value="No aplica">— No aplica</option>
+        </select>
+        <input type="text" id="obs-${key}" placeholder="Observaciones..." style="flex:2;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;min-width:160px" ${!canEdit()?'disabled':''} />
+        ${isAdmin ? `<button class="btn-del" onclick="deleteClItem('${item.id}')" style="flex-shrink:0">✕</button>` : ''}
+      </div>`;
+    }).join('');
+
+    const addRow = isAdmin ? `<div style="padding:8px 14px;border-bottom:1px solid #f0f2f6">
+      <button class="btn-edit" onclick="addClItem('${area}')">+ Agregar ítem en ${area}</button>
+    </div>` : '';
+
+    return `<div class="cl-section">${area}</div>${rows}${addRow}`;
+  }).join('');
+
+  // Add new area button for admin
+  const addAreaHtml = isAdmin ? `
+    <div style="padding:12px 14px;border-top:1px solid #eee;display:flex;gap:8px;align-items:center">
+      <input type="text" id="new-area-name" placeholder="Nueva área (ej: Agua de proceso)" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;width:240px" />
+      <button class="btn-edit" onclick="addClArea()">+ Agregar área</button>
+    </div>` : '';
+
+  const saveBtn = canEdit() ? `<button class="btn-add" onclick="saveChecklist('${semana}')">💾 Guardar checklist</button>` : '';
+
+  pg.innerHTML = `
+    <div class="page-hdr">
+      <div class="page-title">Checklist semanal</div>
+      <div class="page-sub">Semana del ${semanaDisplay} · Frecuencia: semanal</div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-hdr">
+        <div class="table-title">Revisión semanal de laboratorio</div>
+        ${saveBtn}
+      </div>
+      <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;font-weight:700;color:#555">Responsable:</span>
+        <input type="text" id="cl-responsable" placeholder="Nombre del laboratorista que realiza la revisión"
+          style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;width:280px" ${!canEdit()?'disabled':''} />
+        <span style="font-size:11px;color:#aaa;margin-left:8px">Se guardará con fecha y hora automáticamente</span>
+      </div>
+      <div style="display:flex;gap:0;padding:8px 14px;background:var(--wico-light);border-bottom:1px solid #dde3ec">
+        <div style="flex:2;font-size:11px;font-weight:700;color:var(--wico-dark);min-width:160px">ÍTEM</div>
+        <div style="flex:1;font-size:11px;font-weight:700;color:var(--wico-dark);min-width:120px">ESTADO</div>
+        <div style="flex:2;font-size:11px;font-weight:700;color:var(--wico-dark);min-width:160px">OBSERVACIONES</div>
+        ${isAdmin?'<div style="width:36px"></div>':''}
+      </div>
+      ${itemsHtml}
+      ${addAreaHtml}
+    </div>`;
+}
+
+function selCL(key, val) {
+  const row = document.getElementById('row-'+key);
+  if (!row) return;
+  row.style.background = val==='OK' ? '#f3fdf5' : val==='No cumple' ? '#fff5f5' : '';
+}
+
+async function addClItem(area) {
+  const desc = prompt(`Nuevo ítem en "${area}":`);
+  if (!desc || !desc.trim()) return;
+  const { error } = await sb.from('checklist_templates').insert({ area, descripcion: desc.trim(), orden: 99 });
+  if (error) { toast('Error al agregar'); return; }
+  toast('✓ Ítem agregado');
+  renderChecklist();
+}
+
+async function addClArea() {
+  const area = document.getElementById('new-area-name').value.trim();
+  if (!area) { toast('Ingresá el nombre del área'); return; }
+  const desc = prompt(`Primer ítem del área "${area}":`);
+  if (!desc || !desc.trim()) return;
+  const { error } = await sb.from('checklist_templates').insert({ area, descripcion: desc.trim(), orden: 1 });
+  if (error) { toast('Error al agregar'); return; }
+  toast('✓ Área e ítem agregados');
+  renderChecklist();
+}
+
+async function deleteClItem(id) {
+  if (!confirm('¿Eliminar este ítem del checklist?')) return;
+  const { error } = await sb.from('checklist_templates').update({ activo: false }).eq('id', id);
+  if (error) { toast('Error al eliminar'); return; }
+  toast('✓ Ítem eliminado');
+  renderChecklist();
+}
+
+async function saveChecklist(semana) {
+  const responsable = document.getElementById('cl-responsable')?.value?.trim() || currentUser.nombre || currentUser.email;
+  if (!responsable) { toast('Ingresá el nombre del responsable'); return; }
+
+  const btn = document.querySelector('[onclick*="saveChecklist"]');
+  if (btn) { btn.disabled=true; btn.textContent='Guardando...'; }
+
+  const { data: cl, error } = await sb.from('checklists').insert({
+    semana,
+    revisado_por: currentUser.id,
+    responsable,
+    hora_guardado: new Date().toISOString(),
+    completado: true
+  }).select().single();
+
+  if (error) { toast('Error al guardar: '+error.message); if(btn){btn.disabled=false;btn.textContent='💾 Guardar checklist';} return; }
+
+  const items = clTemplates.map(item => {
+    const key = 'cl_'+item.id;
+    const sel = document.getElementById('sel-'+key);
+    const obs = document.getElementById('obs-'+key);
+    return {
+      checklist_id: cl.id,
+      area: item.area,
+      descripcion: item.descripcion,
+      resultado: sel?.value || null,
+      observacion: obs?.value?.trim() || null
+    };
+  });
+
+  const { error: e2 } = await sb.from('checklist_items').insert(items);
+  if (e2) { toast('Error al guardar ítems'); if(btn){btn.disabled=false;btn.textContent='💾 Guardar checklist';} return; }
+
+  toast('✓ Checklist guardado — ' + new Date().toLocaleString('es-AR'));
+  if(btn){btn.disabled=false;btn.textContent='💾 Guardar checklist';}
+}
+
+
+// ── HISTORIAL ─────────────────────────────────────────────────────────────
+async function renderHistorial() {
+  const pg = document.getElementById('page-historial');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Historial de checklists</div><div class="page-sub">Revisiones semanales guardadas</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+  const { data: checks } = await sb.from('checklists').select('*').order('hora_guardado', { ascending: false }).limit(20);
+  if (!checks || checks.length === 0) {
+    pg.innerHTML = `<div class="page-hdr"><div class="page-title">Historial de checklists</div></div><div class="table-wrap"><div class="empty" style="padding:40px">Sin revisiones guardadas todavía.</div></div>`;
+    return;
+  }
+  const rows = checks.map(c => {
+    const fecha = c.hora_guardado ? new Date(c.hora_guardado).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const semana = c.semana ? new Date(c.semana+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+    const resp = (c.responsable||'').replace(/'/g,"\\'");
+    const noOkPending = '';
+    return `<tr><td>${semana}</td><td>${c.responsable||'—'}</td><td>${fecha}</td><td><button class="btn-edit" onclick='verDetalle("${c.id}","${semana}","${resp}")'>Ver detalle</button></td></tr>`;
+  }).join('');
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">Historial de checklists</div><div class="page-sub">Últimas 20 revisiones guardadas</div></div>
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Revisiones semanales</div></div>
+      <table class="tbl"><thead><tr><th>Semana</th><th>Responsable</th><th>Guardado</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+async function verDetalle(checklistId, semana, responsable) {
+  const { data: items } = await sb.from('checklist_items').select('*').eq('checklist_id', checklistId).order('area');
+  if (!items || items.length === 0) { toast('Sin items registrados'); return; }
+  const areas = [...new Set(items.map(i=>i.area))];
+  const ICONOS = {'OK':'✓','No cumple':'✗','No aplica':'—'};
+  const COLORES = {'OK':'#d4edda','No cumple':'#f8d7da','No aplica':'#e9ecef'};
+  const contenido = areas.map(area => {
+    const aItems = items.filter(i=>i.area===area);
+    const filas = aItems.map(i => {
+      const bg = COLORES[i.resultado]||'#fff';
+      const icono = ICONOS[i.resultado]||'—';
+      return `<tr style="background:${bg}"><td>${i.descripcion}</td><td style="text-align:center;font-weight:700">${icono} ${i.resultado||'—'}</td><td style="color:#666">${i.observacion||'—'}</td></tr>`;
+    }).join('');
+    return `<tr><td colspan="3" style="background:var(--wico-light);font-weight:700;color:var(--wico-dark);font-size:11px;padding:6px 12px;text-transform:uppercase">${area}</td></tr>${filas}`;
+  }).join('');
+  const ok = items.filter(i=>i.resultado==='OK').length;
+  const noOk = items.filter(i=>i.resultado==='No cumple').length;
+  const noAplica = items.filter(i=>i.resultado==='No aplica').length;
+  const sinMarcar = items.filter(i=>!i.resultado).length;
+  document.getElementById('modal-title').textContent = 'Checklist — Semana del '+semana;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom:14px;padding:10px 14px;background:#f4f6f9;border-radius:8px;font-size:12px">
+      <strong>Responsable:</strong> ${responsable||'—'} &nbsp;·&nbsp;
+      <span style="color:var(--green)">✓ OK: ${ok}</span> &nbsp;·&nbsp;
+      <span style="color:var(--red)">✗ No cumple: ${noOk}</span> &nbsp;·&nbsp;
+      <span style="color:#888">— No aplica: ${noAplica}</span>
+      ${sinMarcar>0?'&nbsp;·&nbsp;<span style="color:var(--orange)">Sin marcar: '+sinMarcar+'</span>':''}
+    </div>
+    <table class="tbl" style="font-size:12px">
+      <thead><tr><th>Ítem</th><th style="text-align:center">Estado</th><th>Observaciones</th></tr></thead>
+      <tbody>${contenido}</tbody>
+    </table>`;
+  document.getElementById('modal-save').style.display='none';
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+
+// ── USUARIOS ──────────────────────────────────────────────────────────────
+async function renderUsuarios() {
+  if (currentRol !== 'admin') { document.getElementById('page-usuarios').innerHTML='<div class="empty">Sin acceso.</div>'; return; }
+  const pg = document.getElementById('page-usuarios');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Usuarios</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+  const { data } = await sb.from('usuarios').select('*').order('nombre');
+  const rows = (data||[]).map(u => `<tr><td>${u.nombre||'—'}</td><td>${u.email}</td><td>${estadoBadge(u.rol)}</td><td>${u.activo?'<span class="badge bg">Activo</span>':'<span class="badge br">Inactivo</span>'}</td></tr>`).join('');
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">Gestión de usuarios</div><div class="page-sub">Usuarios con acceso al sistema</div></div>
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Usuarios del sistema</div></div>
+      <table class="tbl"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4" class="empty">Sin usuarios.</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+// ── MODAL CRUD ────────────────────────────────────────────────────────────
+const FORMS = {
+  equipos: (d={}) => `
+    <div class="modal-field"><label>Nombre del equipo *</label><input id="f-nombre" value="${d.nombre||''}" /></div>
+    <div class="modal-field"><label>Norma (ASTM / EN / otra)</label><input id="f-norma" value="${d.norma||''}" /></div>
+    <div class="modal-field"><label>Uso / Ensayo que realiza</label><input id="f-uso" value="${d.uso||''}" /></div>
+    <div class="modal-field"><label>Estado</label>
+      <select id="f-estado">
+        ${['Operativo','En reparación','Fuera de servicio','Pendiente de adquisición'].map(s=>`<option ${d.estado===s?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="modal-field"><label>Próxima calibración</label><input type="date" id="f-proxima_calibracion" value="${d.proxima_calibracion||''}" /></div>
+    <div class="modal-field"><label>Última revisión</label><input type="date" id="f-ultima_revision" value="${d.ultima_revision||''}" /></div>
+    <div class="modal-field"><label>Observaciones</label><textarea id="f-observaciones" rows="2">${d.observaciones||''}</textarea></div>`,
+  reactivos: (d={}) => `
+    <div class="modal-field"><label>Nombre del reactivo *</label><input id="f-nombre" value="${d.nombre||''}" /></div>
+    <div class="modal-field"><label>Uso</label><input id="f-uso" value="${d.uso||''}" /></div>
+    <div class="modal-field"><label>Unidad</label><input id="f-unidad" value="${d.unidad||''}" placeholder="g, mL, L, frascos..." /></div>
+    <div class="modal-field"><label>Fecha de vencimiento</label><input type="date" id="f-vencimiento" value="${d.vencimiento||''}" /></div>
+    <div class="modal-field"><label>Stock actual</label><input type="number" id="f-stock_actual" value="${d.stock_actual??''}" step="0.1" /></div>
+    <div class="modal-field"><label>Stock mínimo</label><input type="number" id="f-stock_minimo" value="${d.stock_minimo??''}" step="0.1" /></div>
+    <div class="modal-field"><label>Estado</label>
+      <select id="f-estado">
+        ${['OK','Stock bajo','Vencido','Sin stock'].map(s=>`<option ${d.estado===s?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="modal-field"><label>Observaciones</label><textarea id="f-observaciones" rows="2">${d.observaciones||''}</textarea></div>`,
+  consumibles: (d={}) => `
+    <div class="modal-field"><label>Nombre *</label><input id="f-nombre" value="${d.nombre||''}" /></div>
+    <div class="modal-field"><label>Categoría</label>
+      <select id="f-categoria">
+        ${['EPP','Vidrio','Muestreo','Consumible'].map(s=>`<option ${d.categoria===s?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="modal-field"><label>Unidad</label><input id="f-unidad" value="${d.unidad||''}" placeholder="cajas, unidades, paquetes..." /></div>
+    <div class="modal-field"><label>Stock actual</label><input type="number" id="f-stock_actual" value="${d.stock_actual??''}" step="1" /></div>
+    <div class="modal-field"><label>Stock mínimo</label><input type="number" id="f-stock_minimo" value="${d.stock_minimo??''}" step="1" /></div>
+    <div class="modal-field"><label>Estado</label>
+      <select id="f-estado">
+        ${['OK','Stock bajo','Sin stock','Requiere reposición'].map(s=>`<option ${d.estado===s?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="modal-field"><label>Observaciones</label><textarea id="f-observaciones" rows="2">${d.observaciones||''}</textarea></div>`,
+};
+
+function openNew(table) {
+  modalMode='new'; modalTable=table; modalId=null;
+  document.getElementById('modal-title').textContent = {equipos:'Nuevo equipo',reactivos:'Nuevo reactivo',consumibles:'Nuevo ítem'}[table];
+  document.getElementById('modal-body').innerHTML = FORMS[table]();
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+
+function openEdit(table, data) {
+  modalMode='edit'; modalTable=table; modalId=data.id;
+  document.getElementById('modal-title').textContent = {equipos:'Editar equipo',reactivos:'Editar reactivo',consumibles:'Editar ítem'}[table];
+  document.getElementById('modal-body').innerHTML = FORMS[table](data);
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById("modal-bg").classList.add("hidden"); document.getElementById("modal-save").style.display=""; }
+
+function getModalData(table) {
+  const fields = { equipos:['nombre','norma','uso','estado','proxima_calibracion','ultima_revision','observaciones'], reactivos:['nombre','uso','unidad','vencimiento','stock_actual','stock_minimo','estado','observaciones'], consumibles:['nombre','categoria','unidad','stock_actual','stock_minimo','estado','observaciones'] };
+  const d = {};
+  (fields[table]||[]).forEach(f => {
+    const el = document.getElementById('f-'+f);
+    if (!el) return;
+    d[f] = el.value || null;
+    if (f.includes('stock')) d[f] = el.value !== '' ? parseFloat(el.value) : null;
+  });
+  return d;
+}
+
+async function saveModal() {
+  const btn = document.getElementById('modal-save');
+  btn.disabled=true; btn.textContent='Guardando...';
+  const data = getModalData(modalTable);
+  if (!data.nombre) { toast('El nombre es obligatorio'); btn.disabled=false; btn.textContent='Guardar'; return; }
+  let error;
+  if (modalMode==='new') {
+    ({ error } = await sb.from(modalTable).insert(data));
+  } else {
+    data.updated_at = new Date().toISOString();
+    ({ error } = await sb.from(modalTable).update(data).eq('id', modalId));
+  }
+  btn.disabled=false; btn.textContent='Guardar';
+  if (error) { toast('Error al guardar: '+error.message); return; }
+  closeModal();
+  toast('✓ Guardado correctamente');
+  loadPage({equipos:'equipos',reactivos:'reactivos',consumibles:'consumibles'}[modalTable]);
+}
+
+document.getElementById('modal-bg').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+</script>
+</body>
+</html>
