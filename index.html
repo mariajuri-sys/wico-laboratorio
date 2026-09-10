@@ -220,6 +220,7 @@ body{font-family:Arial,sans-serif;font-size:14px;background:var(--gray);color:#2
       <div class="nav-item" onclick="showPage('consumibles',this);closeSidebar()">📦 Consumibles</div>
       <div class="nav-item" onclick="showPage('checklist',this);closeSidebar()">✅ Checklist</div>
       <div class="nav-item" id="nav-historial" onclick="showPage('historial',this);closeSidebar()">📋 Historial</div>
+      <div class="nav-item" onclick="showPage('agua',this);closeSidebar()">💧 Agua de proceso</div>
       <div class="nav-sec" id="nav-admin-sec">Admin</div>
       <div class="nav-item" id="nav-usuarios" onclick="showPage('usuarios',this);closeSidebar()">👥 Usuarios</div>
       <div class="sidebar-footer">
@@ -233,6 +234,7 @@ body{font-family:Arial,sans-serif;font-size:14px;background:var(--gray);color:#2
       <div id="page-consumibles" class="hidden"></div>
       <div id="page-checklist" class="hidden"></div>
       <div id="page-historial" class="hidden"></div>
+      <div id="page-agua" class="hidden"></div>
       <div id="page-usuarios" class="hidden"></div>
     </div>
   </div>
@@ -318,7 +320,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
 
 // ── NAVEGACIÓN ────────────────────────────────────────────────────────────
 function showPage(name, el) {
-  ['alertas','equipos','reactivos','consumibles','checklist','historial','usuarios'].forEach(p => {
+  ['alertas','equipos','reactivos','consumibles','checklist','historial','agua','usuarios'].forEach(p => {
     document.getElementById('page-'+p).classList.toggle('hidden', p !== name);
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -333,6 +335,7 @@ function loadPage(name) {
   if (name === 'consumibles') renderConsumibles();
   if (name === 'checklist')   renderChecklist();
   if (name === 'historial')   renderHistorial();
+  if (name === 'agua')        renderAgua();
   if (name === 'usuarios')    renderUsuarios();
 }
 
@@ -694,6 +697,106 @@ async function verDetalle(checklistId, semana, responsable) {
     </table>`;
   document.getElementById('modal-save').style.display='none';
   document.getElementById('modal-bg').classList.remove('hidden');
+}
+
+
+// ── AGUA DE PROCESO ───────────────────────────────────────────────────────
+async function renderAgua() {
+  const pg = document.getElementById('page-agua');
+  pg.innerHTML = `<div class="page-hdr"><div class="page-title">Agua de proceso</div><div class="page-sub">Registro de regeneraciones del ablandador</div></div><div class="loading"><span class="spinner"></span>Cargando...</div>`;
+
+  const { data: regs } = await sb.from('regeneraciones')
+    .select('*').order('fecha', { ascending: false }).limit(50);
+
+  const canE = canEdit();
+
+  const formHtml = canE ? `
+    <div class="table-wrap" style="margin-bottom:16px">
+      <div class="table-hdr"><div class="table-title">Nueva regeneración</div></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div class="field-label" style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px">Fecha y hora</div>
+            <input type="datetime-local" id="ag-fecha" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px" />
+          </div>
+          <div style="flex:1;min-width:180px">
+            <div class="field-label" style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px">Solicitado por</div>
+            <input type="text" id="ag-solicitado" placeholder="Nombre de quien lo solicitó" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px" />
+          </div>
+          <div style="flex:1;min-width:140px">
+            <div class="field-label" style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px">Sal usada (kg)</div>
+            <input type="number" id="ag-sal" placeholder="200" step="1" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px" />
+          </div>
+        </div>
+        <div>
+          <div class="field-label" style="font-size:12px;font-weight:700;color:#555;margin-bottom:4px">Observaciones</div>
+          <textarea id="ag-obs" placeholder="Observaciones opcionales..." rows="2" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;font-family:Arial,sans-serif"></textarea>
+        </div>
+        <div>
+          <button class="btn-add" onclick="guardarRegeneracion()" style="padding:8px 20px;font-size:13px">💾 Registrar regeneración</button>
+        </div>
+      </div>
+    </div>` : '';
+
+  const rows = (regs||[]).map(r => {
+    const fecha = r.fecha ? new Date(r.fecha).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `<tr>
+      <td>${fecha}</td>
+      <td><strong>${r.realizado_por_nombre||'—'}</strong></td>
+      <td>${r.solicitado_por||'—'}</td>
+      <td style="text-align:center"><strong>${r.sal_usada_kg||'—'} kg</strong></td>
+      <td style="color:#666">${r.observaciones||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">Sin regeneraciones registradas.</td></tr>';
+
+  pg.innerHTML = `
+    <div class="page-hdr"><div class="page-title">Agua de proceso</div><div class="page-sub">Registro de regeneraciones del ablandador</div></div>
+    ${formHtml}
+    <div class="table-wrap">
+      <div class="table-hdr"><div class="table-title">Historial de regeneraciones</div></div>
+      <table class="tbl">
+        <thead><tr><th>Fecha y hora</th><th>Realizado por</th><th>Solicitado por</th><th style="text-align:center">Sal usada</th><th>Observaciones</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  // Set default datetime to now
+  if (canE) {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('ag-fecha').value = now.toISOString().slice(0,16);
+  }
+}
+
+async function guardarRegeneracion() {
+  const fecha = document.getElementById('ag-fecha').value;
+  const solicitado = document.getElementById('ag-solicitado').value.trim();
+  const sal = document.getElementById('ag-sal').value;
+  const obs = document.getElementById('ag-obs').value.trim();
+
+  if (!solicitado) { toast('Ingresá quién solicitó la regeneración'); return; }
+  if (!sal || parseFloat(sal) <= 0) { toast('Ingresá la cantidad de sal usada'); return; }
+
+  const btn = document.querySelector('[onclick="guardarRegeneracion()"]');
+  if (btn) { btn.disabled=true; btn.textContent='Guardando...'; }
+
+  const { error } = await sb.from('regeneraciones').insert({
+    fecha: fecha ? new Date(fecha).toISOString() : new Date().toISOString(),
+    realizado_por: currentUser.id,
+    realizado_por_nombre: currentUser.nombre || currentUser.email,
+    solicitado_por: solicitado,
+    sal_usada_kg: parseFloat(sal),
+    observaciones: obs || null
+  });
+
+  if (btn) { btn.disabled=false; btn.textContent='💾 Registrar regeneración'; }
+  if (error) { toast('Error al guardar: '+error.message); return; }
+
+  toast('✓ Regeneración registrada correctamente');
+  document.getElementById('ag-solicitado').value = '';
+  document.getElementById('ag-sal').value = '';
+  document.getElementById('ag-obs').value = '';
+  renderAgua();
 }
 
 // ── USUARIOS ──────────────────────────────────────────────────────────────
