@@ -423,6 +423,126 @@ async function renderAlertas() {
     </div>`;
 }
 
+
+// ── OPI — ORDEN DE PEDIDO INTERNA ────────────────────────────────────────
+async function descargarOPI() {
+  const btn = document.querySelector('[onclick="descargarOPI()"]');
+  if (btn) { btn.disabled=true; btn.textContent='Generando...'; }
+
+  // Fetch items with stock bajo or crítico
+  const [re, co] = await Promise.all([
+    sb.from('reactivos').select('*').in('estado', ['Stock bajo','Sin stock','Vencido']),
+    sb.from('consumibles').select('*').in('estado', ['Stock bajo','Sin stock','Requiere reposición']),
+  ]);
+
+  const items = [];
+  (re.data||[]).forEach(r => {
+    const urgencia = r.estado==='Sin stock'||r.estado==='Vencido' ? 'MUY ALTA' :
+      (r.stock_actual !== null && r.stock_minimo > 0 && r.stock_actual <= r.stock_minimo * 0.5) ? 'ALTA' : 'MEDIA';
+    const cantSugerida = r.stock_minimo > 0 ? Math.max(r.stock_minimo - (r.stock_actual||0), r.stock_minimo) : 1;
+    items.push({ desc: r.nombre, cantidad: cantSugerida, unidad: r.unidad||'unidad', urgencia });
+  });
+  (co.data||[]).forEach(c => {
+    const urgencia = c.estado==='Sin stock' ? 'MUY ALTA' :
+      (c.stock_actual !== null && c.stock_minimo > 0 && c.stock_actual <= c.stock_minimo * 0.5) ? 'ALTA' : 'MEDIA';
+    const cantSugerida = c.stock_minimo > 0 ? Math.max(c.stock_minimo - (c.stock_actual||0), c.stock_minimo) : 1;
+    items.push({ desc: c.nombre, cantidad: cantSugerida, unidad: c.unidad||'unidad', urgencia });
+  });
+
+  if (items.length === 0) {
+    toast('No hay ítems con stock bajo o crítico para generar OPI');
+    if (btn) { btn.disabled=false; btn.textContent='📥 Descargar OPI'; }
+    return;
+  }
+
+  // Generate OPI number
+  const fecha = new Date();
+  const nroOPI = 'OPI-' + String(fecha.getFullYear()).slice(2) +
+    String(fecha.getMonth()+1).padStart(2,'0') +
+    String(fecha.getDate()).padStart(2,'0') + '-' +
+    String(fecha.getHours()).padStart(2,'0') +
+    String(fecha.getMinutes()).padStart(2,'0');
+  const fechaStr = fecha.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const realizadoPor = currentUser.nombre || currentUser.email;
+
+  // Build workbook using SheetJS
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+
+  // Helper to set cell
+  function sc(addr, v, t, s) {
+    ws[addr] = { v, t: t||'s', s: s||{} };
+  }
+
+  const AZUL = { fgColor: { rgb: '1B365D' } };
+  const BLANCO = { fgColor: { rgb: 'FFFFFF' } };
+
+  // Title
+  ws['B3'] = { v: 'ORDEN DE PEDIDO INTERNA', t: 's' };
+
+  // Header fields
+  ws['D4'] = { v: 'Sector Demandante:', t: 's' };
+  ws['E4'] = { v: 'Laboratorio', t: 's' };
+  ws['D5'] = { v: 'Persona Autorizada:', t: 's' };
+  ws['E5'] = { v: '', t: 's' };
+  ws['D6'] = { v: 'N° Orden:', t: 's' };
+  ws['E6'] = { v: nroOPI, t: 's' };
+  ws['F6'] = { v: 'Fecha de pedido:', t: 's' };
+  ws['G6'] = { v: fechaStr, t: 's' };
+  ws['D7'] = { v: 'Destino:', t: 's' };
+  ws['E7'] = { v: 'Laboratorio', t: 's' };
+
+  // Table headers row 10
+  ws['B10'] = { v: 'ITEM', t: 's' };
+  ws['C10'] = { v: 'DESCRIPCIÓN', t: 's' };
+  ws['D10'] = { v: 'CANTIDAD', t: 's' };
+  ws['E10'] = { v: 'UNIDAD', t: 's' };
+  ws['F10'] = { v: 'URGENCIA', t: 's' };
+
+  // Items
+  items.forEach((item, idx) => {
+    const row = 11 + idx;
+    ws['B'+row] = { v: idx+1, t: 'n' };
+    ws['C'+row] = { v: item.desc, t: 's' };
+    ws['D'+row] = { v: item.cantidad, t: 'n' };
+    ws['E'+row] = { v: item.unidad, t: 's' };
+    ws['F'+row] = { v: item.urgencia, t: 's' };
+  });
+
+  // Firmas
+  const firmaRow = 11 + items.length + 3;
+  ws['B'+firmaRow] = { v: 'Realizado por: ' + realizadoPor, t: 's' };
+  ws['B'+(firmaRow+1)] = { v: 'Autorizado por: ', t: 's' };
+  ws['B'+(firmaRow+3)] = { v: 'Recepción:', t: 's' };
+  ws['B'+(firmaRow+4)] = { v: 'Pedido recibido el:', t: 's' };
+  ws['B'+(firmaRow+5)] = { v: 'Revisado por:', t: 's' };
+  ws['B'+(firmaRow+6)] = { v: 'Observaciones:', t: 's' };
+
+  // Set worksheet range
+  const lastRow = firmaRow + 7;
+  ws['!ref'] = 'A1:H' + lastRow;
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:4}, {wch:6}, {wch:40}, {wch:12}, {wch:12}, {wch:12}, {wch:16}, {wch:12}
+  ];
+
+  // Merges
+  ws['!merges'] = [
+    {s:{r:2,c:1}, e:{r:2,c:5}},  // B3:F3 title
+    {s:{r:9,c:2}, e:{r:9,c:2}},  // C10 description header wider
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'OPI');
+
+  // Download
+  const filename = nroOPI + '.xlsx';
+  XLSX.writeFile(wb, filename);
+
+  toast('✓ OPI generada: ' + filename);
+  if (btn) { btn.disabled=false; btn.textContent='📥 Descargar OPI'; }
+}
+
 // ── EQUIPOS ───────────────────────────────────────────────────────────────
 async function renderEquipos() {
   const pg = document.getElementById('page-equipos');
