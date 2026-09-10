@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WICO Combustibles — Laboratorio</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
 function toggleSidebar() {
   const sb = document.getElementById('main-sidebar');
@@ -431,7 +430,6 @@ async function descargarOPI() {
   const btn = document.querySelector('[onclick="descargarOPI()"]');
   if (btn) { btn.disabled=true; btn.textContent='Generando...'; }
 
-  // Fetch items with stock bajo or crítico
   const [re, co] = await Promise.all([
     sb.from('reactivos').select('*').in('estado', ['Stock bajo','Sin stock','Vencido']),
     sb.from('consumibles').select('*').in('estado', ['Stock bajo','Sin stock','Requiere reposición']),
@@ -441,14 +439,14 @@ async function descargarOPI() {
   (re.data||[]).forEach(r => {
     const urgencia = r.estado==='Sin stock'||r.estado==='Vencido' ? 'MUY ALTA' :
       (r.stock_actual !== null && r.stock_minimo > 0 && r.stock_actual <= r.stock_minimo * 0.5) ? 'ALTA' : 'MEDIA';
-    const cantSugerida = r.stock_minimo > 0 ? Math.max(r.stock_minimo - (r.stock_actual||0), r.stock_minimo) : 1;
-    items.push({ desc: r.nombre, cantidad: cantSugerida, unidad: r.unidad||'unidad', urgencia });
+    const cant = r.stock_minimo > 0 ? Math.max(r.stock_minimo - (r.stock_actual||0), r.stock_minimo) : 1;
+    items.push({ desc: r.nombre, cantidad: cant, unidad: r.unidad||'unidad', urgencia });
   });
   (co.data||[]).forEach(c => {
     const urgencia = c.estado==='Sin stock' ? 'MUY ALTA' :
       (c.stock_actual !== null && c.stock_minimo > 0 && c.stock_actual <= c.stock_minimo * 0.5) ? 'ALTA' : 'MEDIA';
-    const cantSugerida = c.stock_minimo > 0 ? Math.max(c.stock_minimo - (c.stock_actual||0), c.stock_minimo) : 1;
-    items.push({ desc: c.nombre, cantidad: cantSugerida, unidad: c.unidad||'unidad', urgencia });
+    const cant = c.stock_minimo > 0 ? Math.max(c.stock_minimo - (c.stock_actual||0), c.stock_minimo) : 1;
+    items.push({ desc: c.nombre, cantidad: cant, unidad: c.unidad||'unidad', urgencia });
   });
 
   if (items.length === 0) {
@@ -457,7 +455,6 @@ async function descargarOPI() {
     return;
   }
 
-  // Generate OPI number
   const fecha = new Date();
   const nroOPI = 'OPI-' + String(fecha.getFullYear()).slice(2) +
     String(fecha.getMonth()+1).padStart(2,'0') +
@@ -467,83 +464,149 @@ async function descargarOPI() {
   const fechaStr = fecha.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
   const realizadoPor = currentUser.nombre || currentUser.email;
 
-  // Build workbook using SheetJS
-  const wb = XLSX.utils.book_new();
-  const ws = {};
-
-  // Helper to set cell
-  function sc(addr, v, t, s) {
-    ws[addr] = { v, t: t||'s', s: s||{} };
+  // Urgencia color
+  function urgColor(u) {
+    if (u==='MUY ALTA') return '#C00000';
+    if (u==='ALTA') return '#E67E22';
+    if (u==='MEDIA') return '#F0AD00';
+    return '#27AE60';
   }
 
-  const AZUL = { fgColor: { rgb: '1B365D' } };
-  const BLANCO = { fgColor: { rgb: 'FFFFFF' } };
+  const itemRows = items.map((item, idx) => `
+    <tr>
+      <td style="text-align:center;font-weight:700;border:1px solid #ccc;padding:6px">${idx+1}</td>
+      <td style="border:1px solid #ccc;padding:6px">${item.desc}</td>
+      <td style="text-align:center;border:1px solid #ccc;padding:6px">${item.cantidad}</td>
+      <td style="text-align:center;border:1px solid #ccc;padding:6px">${item.unidad}</td>
+      <td style="text-align:center;border:1px solid #ccc;padding:6px;color:${urgColor(item.urgencia)};font-weight:700">${item.urgencia}</td>
+    </tr>`).join('');
 
-  // Title
-  ws['B3'] = { v: 'ORDEN DE PEDIDO INTERNA', t: 's' };
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 15mm; }
+  * { box-sizing: border-box; font-family: Arial, sans-serif; }
+  body { margin: 0; padding: 0; color: #000; font-size: 11px; }
+  .header-bar { background: #1F3864; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .logo-circle { width: 44px; height: 44px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo-inner { background: #1F3864; color: #fff; font-weight: 700; font-size: 9px; text-align: center; padding: 3px 4px; border-radius: 2px; line-height: 1.3; }
+  .logo-inner span { color: #e74c3c; font-size: 7px; display: block; }
+  .header-title { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+  .gray-bar { background: #BFBFBF; height: 6px; margin-bottom: 10px; }
+  .info-table { width: 100%; margin-bottom: 10px; border-collapse: collapse; }
+  .info-table td { padding: 3px 6px; font-size: 11px; }
+  .info-label { font-weight: 700; color: #333; white-space: nowrap; }
+  .info-value { border-bottom: 1px solid #999; min-width: 120px; }
+  .nro-badge { background: #1B365D; color: #fff; font-weight: 700; padding: 2px 10px; border-radius: 4px; font-size: 12px; }
+  .section-title { background: #1B365D; color: #fff; font-weight: 700; padding: 5px 10px; font-size: 11px; margin-bottom: 0; }
+  .items-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  .items-table th { background: #1B365D; color: #fff; padding: 6px 8px; text-align: center; font-size: 11px; border: 1px solid #1B365D; }
+  .items-table th.desc { text-align: left; }
+  .items-table td { font-size: 11px; }
+  .items-table tr:nth-child(even) td { background: #f5f7fa; }
+  .firmas { display: flex; gap: 20px; margin-top: 20px; }
+  .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 4px; font-size: 11px; }
+  .firma-label { font-weight: 700; color: #333; margin-bottom: 14px; }
+  .recepcion { border: 1px solid #ccc; border-radius: 4px; padding: 10px; margin-top: 14px; }
+  .recepcion-title { font-weight: 700; color: #1B365D; margin-bottom: 8px; font-size: 11px; }
+  .recepcion-row { display: flex; gap: 16px; margin-bottom: 6px; }
+  .recepcion-field { flex: 1; border-bottom: 1px solid #999; padding-bottom: 2px; font-size: 11px; }
+  .footer-bar { background: #1B365D; color: #fff; text-align: center; padding: 4px; font-size: 9px; margin-top: 14px; }
+  @media print { .no-print { display: none; } }
+</style>
+</head>
+<body>
 
-  // Header fields
-  ws['D4'] = { v: 'Sector Demandante:', t: 's' };
-  ws['E4'] = { v: 'Laboratorio', t: 's' };
-  ws['D5'] = { v: 'Persona Autorizada:', t: 's' };
-  ws['E5'] = { v: '', t: 's' };
-  ws['D6'] = { v: 'N° Orden:', t: 's' };
-  ws['E6'] = { v: nroOPI, t: 's' };
-  ws['F6'] = { v: 'Fecha de pedido:', t: 's' };
-  ws['G6'] = { v: fechaStr, t: 's' };
-  ws['D7'] = { v: 'Destino:', t: 's' };
-  ws['E7'] = { v: 'Laboratorio', t: 's' };
+<div class="no-print" style="background:#1F3864;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+  <span style="font-weight:700">Vista previa — OPI ${nroOPI}</span>
+  <button onclick="window.print()" style="background:#fff;color:#1F3864;border:none;padding:6px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px">🖨 Imprimir / Guardar PDF</button>
+</div>
 
-  // Table headers row 10
-  ws['B10'] = { v: 'ITEM', t: 's' };
-  ws['C10'] = { v: 'DESCRIPCIÓN', t: 's' };
-  ws['D10'] = { v: 'CANTIDAD', t: 's' };
-  ws['E10'] = { v: 'UNIDAD', t: 's' };
-  ws['F10'] = { v: 'URGENCIA', t: 's' };
+<div class="header-bar">
+  <div class="logo-circle"><div class="logo-inner">WICO<span>COMB.</span></div></div>
+  <div class="header-title">ORDEN DE PEDIDO INTERNA</div>
+</div>
+<div class="gray-bar"></div>
 
-  // Items
-  items.forEach((item, idx) => {
-    const row = 11 + idx;
-    ws['B'+row] = { v: idx+1, t: 'n' };
-    ws['C'+row] = { v: item.desc, t: 's' };
-    ws['D'+row] = { v: item.cantidad, t: 'n' };
-    ws['E'+row] = { v: item.unidad, t: 's' };
-    ws['F'+row] = { v: item.urgencia, t: 's' };
-  });
+<table class="info-table">
+  <tr>
+    <td class="info-label">Sector Demandante:</td>
+    <td class="info-value">Laboratorio</td>
+    <td width="20"></td>
+    <td class="info-label">N° Orden:</td>
+    <td><span class="nro-badge">${nroOPI}</span></td>
+  </tr>
+  <tr>
+    <td class="info-label">Persona Autorizada:</td>
+    <td class="info-value"></td>
+    <td></td>
+    <td class="info-label">Fecha de pedido:</td>
+    <td class="info-value">${fechaStr}</td>
+  </tr>
+  <tr>
+    <td class="info-label">Destino:</td>
+    <td class="info-value">Laboratorio</td>
+    <td></td>
+    <td class="info-label">Proyecto:</td>
+    <td class="info-value"></td>
+  </tr>
+</table>
 
-  // Firmas
-  const firmaRow = 11 + items.length + 3;
-  ws['B'+firmaRow] = { v: 'Realizado por: ' + realizadoPor, t: 's' };
-  ws['B'+(firmaRow+1)] = { v: 'Autorizado por: ', t: 's' };
-  ws['B'+(firmaRow+3)] = { v: 'Recepción:', t: 's' };
-  ws['B'+(firmaRow+4)] = { v: 'Pedido recibido el:', t: 's' };
-  ws['B'+(firmaRow+5)] = { v: 'Revisado por:', t: 's' };
-  ws['B'+(firmaRow+6)] = { v: 'Observaciones:', t: 's' };
+<div class="section-title">ÍTEMS SOLICITADOS</div>
+<table class="items-table">
+  <thead>
+    <tr>
+      <th style="width:40px">ITEM</th>
+      <th class="desc" style="width:auto">DESCRIPCIÓN</th>
+      <th style="width:80px">CANTIDAD</th>
+      <th style="width:80px">UNIDAD</th>
+      <th style="width:90px">URGENCIA</th>
+    </tr>
+  </thead>
+  <tbody>${itemRows}</tbody>
+</table>
 
-  // Set worksheet range
-  const lastRow = firmaRow + 7;
-  ws['!ref'] = 'A1:H' + lastRow;
+<div class="firmas">
+  <div class="firma-box">
+    <div class="firma-label">Realizado por:</div>
+    <div>${realizadoPor}</div>
+  </div>
+  <div class="firma-box">
+    <div class="firma-label">Autorizado por:</div>
+    <div>&nbsp;</div>
+  </div>
+</div>
 
-  // Column widths
-  ws['!cols'] = [
-    {wch:4}, {wch:6}, {wch:40}, {wch:12}, {wch:12}, {wch:12}, {wch:16}, {wch:12}
-  ];
+<div class="recepcion">
+  <div class="recepcion-title">RECEPCIÓN</div>
+  <div class="recepcion-row">
+    <span class="info-label">Pedido recibido el:</span>
+    <span class="recepcion-field">&nbsp;</span>
+    <span class="info-label">Revisado por:</span>
+    <span class="recepcion-field">&nbsp;</span>
+  </div>
+  <div class="recepcion-row">
+    <span class="info-label">Observaciones:</span>
+    <span class="recepcion-field" style="flex:3">&nbsp;</span>
+  </div>
+</div>
 
-  // Merges
-  ws['!merges'] = [
-    {s:{r:2,c:1}, e:{r:2,c:5}},  // B3:F3 title
-    {s:{r:9,c:2}, e:{r:9,c:2}},  // C10 description header wider
-  ];
+<div class="footer-bar">WICO COMBUSTIBLES · WWW.WICO.COM.AR</div>
 
-  XLSX.utils.book_append_sheet(wb, ws, 'OPI');
+</body>
+</html>`;
 
-  // Download
-  const filename = nroOPI + '.xlsx';
-  XLSX.writeFile(wb, filename);
+  // Open in new window for print/save as PDF
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
 
-  toast('✓ OPI generada: ' + filename);
   if (btn) { btn.disabled=false; btn.textContent='📥 Descargar OPI'; }
+  toast('✓ OPI generada — usá Ctrl+P para guardar como PDF');
 }
+
 
 // ── EQUIPOS ───────────────────────────────────────────────────────────────
 async function renderEquipos() {
